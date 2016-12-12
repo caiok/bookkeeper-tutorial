@@ -1,22 +1,13 @@
 package org.apache.bookkeeper;
 
 
-
-
 import com.google.common.primitives.Ints;
-
-import java.io.Closeable;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Random;
-
-import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.commons.cli.*;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.leader.LeaderSelector;
@@ -25,13 +16,21 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
+import java.io.Closeable;
+import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.stream.Collectors;
+
 public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
 
-    final static String ZOOKEEPER_SERVER = "127.0.0.1:2181";
+    final static String DEFAULT_ZOOKEEPER_SERVER = "127.0.0.1:2181";
     final static String ELECTION_PATH = "/dice-elect";
     final static byte[] DICE_PASSWD = "dice".getBytes();
     final static String DICE_LOG = "/dice-log";
-
+    
+    static String zookeeperServer = DEFAULT_ZOOKEEPER_SERVER;
+    
     Random r = new Random();
     CuratorFramework curator;
     LeaderSelector leaderSelector;
@@ -40,17 +39,19 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
     volatile boolean leader = false;
 
     Dice() throws Exception {
-        curator = CuratorFrameworkFactory.newClient(ZOOKEEPER_SERVER,
+        curator = CuratorFrameworkFactory.newClient(zookeeperServer,
                 2000, 10000, new ExponentialBackoffRetry(1000, 3));
         curator.start();
+        System.out.print("Connecting to Zookeeper Server...");
         curator.blockUntilConnected();
+        System.out.println(" Connected.");
 
         leaderSelector = new LeaderSelector(curator, ELECTION_PATH, this);
         leaderSelector.autoRequeue();
         leaderSelector.start();
 
         ClientConfiguration conf = new ClientConfiguration()
-            .setZkServers(ZOOKEEPER_SERVER).setZkTimeout(30000);
+            .setZkServers(zookeeperServer).setZkTimeout(30000);
         bookkeeper = new BookKeeper(conf);
     }
 
@@ -228,8 +229,45 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
             }
         }
     }
-
+    
+    private static void parseOptions(String[] args) {
+        Options options = new Options();
+    
+        Option zkServersOpt = new Option("z", "zookeeper-servers", true, "Zookeeper servers (will use only the first one)");
+        zkServersOpt.setRequired(false);
+        options.addOption(zkServersOpt);
+    
+        CommandLineParser parser = new GnuParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd;
+    
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            formatter.printHelp("bookkeeper dice demo", options);
+        
+            System.exit(1);
+            return;
+        }
+    
+        String zkServersStr = cmd.getOptionValue("z");
+        if (zkServersStr != null) {
+            List<String> zkServers = Arrays.asList(zkServersStr.split(","))
+                    .stream()
+                    .map((s) -> {
+                        return s.trim();
+                    })
+                    .collect(Collectors.toList());
+    
+            zookeeperServer = zkServers.get(0);
+        }
+    }
+    
     public static void main(String[] args) throws Exception {
+        parseOptions(args);
+        System.out.println("Zookeeper Server: " + zookeeperServer);
+        
         Dice d = new Dice();
         try {
             d.playDice();
