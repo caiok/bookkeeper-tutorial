@@ -1,2 +1,7 @@
+# Editor specific files
 .idea/
+*.iml
+
+# Build generated files
 target/
+docker/*.jar
