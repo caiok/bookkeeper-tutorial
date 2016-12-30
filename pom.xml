@@ -4,7 +4,7 @@
   <groupId>org.apache.bookkeeper</groupId>
   <artifactId>tutorial</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0</version>
   <name>tutorial</name>
   <url>http://zookeeper.apache.org/bookkeeper</url>
   <dependencies>
