@@ -14,7 +14,7 @@ In order to run the image you need a Zookeeper ensemble (in standalone mode, for
 
 When these are up and running, run:
 ```
-make run CONTAINER_NUM=1 ZOOKEEPER_SERVERS=127.0.0.1:2181
+make run ZOOKEEPER_SERVERS=127.0.0.1:2181
 ```
 
-If you want to run many instances of the tutorial to see concurrency in action, execute the previous command changing CONTAINER_NUM value.
+The previous command can be run as many times as desired in order to see concurrency in action.

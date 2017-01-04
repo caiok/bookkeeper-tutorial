@@ -23,21 +23,21 @@ import java.util.stream.Collectors;
 
 public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
 
-    final static String DEFAULT_ZOOKEEPER_SERVER = "127.0.0.1:2181";
-    final static String ELECTION_PATH = "/dice-elect";
-    final static byte[] DICE_PASSWD = "dice".getBytes();
-    final static String DICE_LOG = "/dice-log";
+    private final static String DEFAULT_ZOOKEEPER_SERVER = "127.0.0.1:2181";
+    private final static String ELECTION_PATH = "/dice-elect";
+    private final static byte[] DICE_PASSWD = "dice".getBytes();
+    private final static String DICE_LOG = "/dice-log";
     
-    static String zookeeperServer = DEFAULT_ZOOKEEPER_SERVER;
+    private static String zookeeperServer = DEFAULT_ZOOKEEPER_SERVER;
     
-    Random r = new Random();
-    CuratorFramework curator;
-    LeaderSelector leaderSelector;
-    BookKeeper bookkeeper;
+    private Random r = new Random();
+    private CuratorFramework curator;
+    private LeaderSelector leaderSelector;
+    private BookKeeper bookkeeper;
+    
+    private volatile boolean leader = false;
 
-    volatile boolean leader = false;
-
-    Dice() throws Exception {
+    private Dice() throws Exception {
         curator = CuratorFrameworkFactory.newClient(zookeeperServer,
                 2000, 10000, new ExponentialBackoffRetry(1000, 3));
         curator.start();
@@ -76,8 +76,9 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
         leaderSelector.close();
         curator.close();
     }
-
-    EntryId lead(EntryId skipPast) throws Exception {
+    
+    private EntryId lead(EntryId skipPast) throws Exception {
+        System.out.println("Lead");
         EntryId lastDisplayedEntry = skipPast;
         Stat stat = new Stat();
         List<Long> ledgers;
@@ -87,7 +88,7 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
                 .storingStatIn(stat).forPath(DICE_LOG);
             ledgers = listFromBytes(ledgerListBytes);
         } catch (KeeperException.NoNodeException nne) {
-            ledgers = new ArrayList<Long>();
+            ledgers = new ArrayList<>();
             mustCreate = true;
         }
 
@@ -160,8 +161,9 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
         }
         return lastDisplayedEntry;
     }
-
-    EntryId follow(EntryId skipPast) throws Exception {
+    
+    private EntryId follow(EntryId skipPast) throws Exception {
+        System.out.println("Follow");
         List<Long> ledgers = null;
         while (ledgers == null) {
             try {
@@ -217,8 +219,8 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
         }
         return lastReadEntry;
     }
-
-    void playDice() throws Exception {
+    
+    private void playDice() throws Exception {
         EntryId lastDisplayedEntry = new EntryId(-1, -1);
         while (true) {
             if (leader) {
@@ -252,11 +254,8 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
     
         String zkServersStr = cmd.getOptionValue("z");
         if (zkServersStr != null) {
-            List<String> zkServers = Arrays.asList(zkServersStr.split(","))
-                    .stream()
-                    .map((s) -> {
-                        return s.trim();
-                    })
+            List<String> zkServers = Arrays.stream(zkServersStr.split(","))
+                    .map(String::trim)
                     .collect(Collectors.toList());
     
             zookeeperServer = zkServers.get(0);
@@ -266,16 +265,13 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
     public static void main(String[] args) throws Exception {
         parseOptions(args);
         System.out.println("Zookeeper Server: " + zookeeperServer);
-        
-        Dice d = new Dice();
-        try {
+    
+        try (Dice d = new Dice()) {
             d.playDice();
-        } finally {
-            d.close();
         }
     }
-
-    static class EntryId {
+    
+    private static class EntryId {
         final long ledgerId;
         final long entryId;
 
@@ -292,17 +288,17 @@ public class Dice extends LeaderSelectorListenerAdapter implements Closeable {
             return entryId;
         }
     }
-
-    static byte[] listToBytes(List<Long> ledgerIds) {
+    
+    private static byte[] listToBytes(List<Long> ledgerIds) {
         ByteBuffer bb = ByteBuffer.allocate((Long.SIZE*ledgerIds.size())/8);
         for (Long l : ledgerIds) {
             bb.putLong(l);
         }
         return bb.array();
     }
-
-    static List<Long> listFromBytes(byte[] bytes) {
-        List<Long> ledgerIds = new ArrayList<Long>();
+    
+    private static List<Long> listFromBytes(byte[] bytes) {
+        List<Long> ledgerIds = new ArrayList<>();
         ByteBuffer bb = ByteBuffer.wrap(bytes);
         while (bb.remaining() > 0) {
             ledgerIds.add(bb.getLong());

@@ -1,9 +1,6 @@
 
 VERSION := $(shell mvn org.apache.maven.plugins:maven-help-plugin:2.1.1:evaluate -Dexpression=project.version 2>/dev/null | grep -v '^\[' )
 IMAGE := caiok/bookkeeper-tutorial
-CONTAINER_PREFIX := bookkeeper-tutorial
-CONTAINER_NUM ?= 1
-CONTAINER := $(CONTAINER_PREFIX)-$(CONTAINER_NUM)
 
 all: build
 	
@@ -28,6 +25,5 @@ push:
 
 run:
 	docker run --rm -it \
-		--name $(CONTAINER) \
 		-e ZOOKEEPER_SERVERS=127.0.0.1:2181 \
 		$(IMAGE):latest
