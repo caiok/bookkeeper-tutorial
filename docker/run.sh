@@ -5,6 +5,14 @@ if [ "${ZOOKEEPER_SERVERS}" = "" ]; then
 	exit
 fi
 
+# Wait for bookies
+if [ ! -z "${BOOKKEEPER_SERVER}" ]; then
+    while ! nc -z -w 2 ${BOOKKEEPER_SERVER} 3181; do
+        sleep 1
+    done
+    echo "Connected to bookie: ${BOOKKEEPER_SERVER}"
+fi
+
 set -x
 
 java -jar /local/bookkeeper-tutorial.jar --zookeeper-servers ${ZOOKEEPER_SERVERS}
