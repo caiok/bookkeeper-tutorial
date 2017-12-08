@@ -5,9 +5,11 @@ if [ "${ZOOKEEPER_SERVERS}" = "" ]; then
 	exit
 fi
 
-# Wait for bookies
+# Wait for bookkeeper
+BOOKKEEPER_PORT=${BOOKKEEPER_PORT:-3181}
+
 if [ ! -z "${BOOKKEEPER_SERVER}" ]; then
-    while ! nc -z -w 2 ${BOOKKEEPER_SERVER} 3181; do
+    while ! nc -z -w 2 ${BOOKKEEPER_SERVER} ${BOOKKEEPER_PORT}; do
         sleep 1
     done
     echo "Connected to bookie: ${BOOKKEEPER_SERVER}"
