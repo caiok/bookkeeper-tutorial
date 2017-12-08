@@ -9,6 +9,7 @@ build-java:
 	mvn clean install
 
 build-docker:
+	-docker rmi $(IMAGE):$(VERSION) $(IMAGE):latest
 	cp -afv target/tutorial-$(VERSION)-jar-with-dependencies.jar docker/bookkeeper-tutorial.jar
 	cd docker; docker build \
 		-t $(IMAGE):$(VERSION) -t $(IMAGE):latest \
